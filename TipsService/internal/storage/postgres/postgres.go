@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"tipsservice/internal/models/domain"
 	storageerrors "tipsservice/internal/storage"
 
@@ -38,28 +36,24 @@ func New(log *zap.Logger, conn string) (*Storage, func() error, error) {
 
 	tmpLog.Info("database connection established")
 
-	wd, err := os.Getwd()
-	if err != nil {
-		tmpLog.Error("Error getting work dir", zap.Error(err))
-		return nil, nil, fmt.Errorf("%s: %w", op, err)
-	}
-	migrationsPath := filepath.Join(wd, "migrations", "postgres")
-
-	if err = applyMigrations(db, migrationsPath); err != nil {
-		tmpLog.Error("failed to apply migrations", zap.Error(err))
-		return nil, nil, fmt.Errorf("%s: %w", op, err)
-	}
-
 	return &Storage{
 		log: log,
 		db:  db,
 	}, db.Close, nil
 }
 
-func applyMigrations(db *sql.DB, migrationPath string) error {
+func NewWithDB(log *zap.Logger, db *sql.DB) (*Storage, error) {
+	return &Storage{
+		log: log,
+		db:  db,
+	}, nil
+}
+
+func ApplyMigrations(db *sql.DB, migrationPath string) error {
 	const op = "storage.postgres.apply"
 	if err := goose.Up(db, migrationPath); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		goose.SetLogger(nil)
+		return goose.Up(db, migrationPath)
 	}
 
 	return nil
@@ -115,9 +109,10 @@ func (s *Storage) GetTipsByUser(ctx context.Context, userId uuid.UUID) ([]domain
 	defer rows.Close()
 
 	var tips []domain.Tip
-	var tmp domain.Tip
 
 	for rows.Next() {
+		var tmp domain.Tip
+
 		if err := rows.Scan(&tmp.Id, &tmp.UserId, &tmp.Title, &tmp.Content, &tmp.CreatedAt); err != nil {
 			log.Error("failed to scan row", zap.Error(err))
 			return nil, fmt.Errorf("%s: %w", op, err)
@@ -133,20 +128,19 @@ func (s *Storage) GetTipById(ctx context.Context, id uuid.UUID) (domain.Tip, err
 	const op = "storage.postgres.GetTipById"
 	log := s.log.With(zap.String("op", op))
 
-	query := `SELECT id, user_id, title, content, created_at
+	query := `SELECT id, user_id, title, content, created_at, is_private
 			  FROM tips
-			  WHERE id = $1
-			  ORDER BY created_at DESC;`
+			  WHERE id = $1;`
 
 	row := s.db.QueryRowContext(ctx, query, id)
-	if row.Err() == sql.ErrNoRows {
+
+	var tmp domain.Tip
+	err := row.Scan(&tmp.Id, &tmp.UserId, &tmp.Title, &tmp.Content, &tmp.CreatedAt, &tmp.IsPrivate)
+	if err == sql.ErrNoRows {
 		log.Warn("tip not found", zap.String("tip_id", id.String()))
 		return domain.Tip{}, fmt.Errorf("%s: %w", op, storageerrors.ErrNotFound)
 	}
-
-	var tmp domain.Tip
-
-	if err := row.Scan(&tmp.Id, &tmp.UserId, &tmp.Title, &tmp.Content, &tmp.CreatedAt); err != nil {
+	if err != nil {
 		log.Error("failed to scan row", zap.Error(err))
 		return domain.Tip{}, fmt.Errorf("%s: %w", op, err)
 	}
@@ -171,7 +165,7 @@ func (s *Storage) Insert(ctx context.Context, tip domain.Tip) error {
 		}
 
 		log.Error("failed to execute insert", zap.Error(err))
-		return err
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
@@ -181,38 +175,27 @@ func (s *Storage) Update(ctx context.Context, id uuid.UUID, tip domain.Tip) erro
 	const op = "storage.postgres.Update"
 	log := s.log.With(zap.String("op", op))
 
-	queryGet := `SELECT id FROM tips WHERE id = $1;`
-
-	queryUpdate := `UPDATE tips
+	query := `UPDATE tips
 			  SET title = $1, content = $2, is_private = $3
 			  WHERE id = $4;`
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		log.Error("failed to begin transaction", zap.Error(err))
-		return err
-	}
-
-	if err := tx.QueryRowContext(ctx, queryGet, id).Scan(&id); err != nil {
-		if err == sql.ErrNoRows {
-			log.Warn("tip not found", zap.Error(err))
-			tx.Rollback()
-			return fmt.Errorf("%s: %w", op, storageerrors.ErrNotFound)
-		}
-
-		log.Error("failed to execute select before update", zap.Error(err))
-		tx.Rollback()
-
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	_, err = tx.ExecContext(ctx, queryUpdate, tip.Title, tip.Content, tip.IsPrivate, id)
+	res, err := s.db.ExecContext(ctx, query, tip.Title, tip.Content, tip.IsPrivate, id)
 	if err != nil {
 		log.Error("failed to execute update", zap.Error(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	tx.Commit()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		log.Error("failed to get rows affected", zap.Error(err))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if rowsAffected == 0 {
+		log.Warn("tip not found for update", zap.String("tip_id", id.String()))
+		return fmt.Errorf("%s: %w", op, storageerrors.ErrNotFound)
+	}
+
 	return nil
 }
 
