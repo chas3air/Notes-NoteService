@@ -92,16 +92,18 @@ func (s *Storage) GetTips(ctx context.Context, offset int, limit int) ([]domain.
 	return tips, nil
 }
 
-func (s *Storage) GetTipsByUser(ctx context.Context, userId uuid.UUID) ([]domain.Tip, error) {
+func (s *Storage) GetTipsByUser(ctx context.Context, userId uuid.UUID, offset int, limit int) ([]domain.Tip, error) {
 	const op = "storage.postgres.GetTipsByUser"
 	log := s.log.With(zap.String("op", op))
 
 	query := `SELECT id, user_id, title, content, created_at
 			  FROM tips
 			  WHERE user_id = $1
-			  ORDER BY created_at DESC;`
+			  ORDER BY created_at DESC
+			  LIMIT $2
+			  OFFSET $3;`
 
-	rows, err := s.db.QueryContext(ctx, query, userId)
+	rows, err := s.db.QueryContext(ctx, query, userId, limit, offset)
 	if err != nil {
 		log.Error("failed to execute query", zap.Error(err))
 		return nil, fmt.Errorf("%s: %w", op, err)

@@ -137,7 +137,7 @@ func TestGetTipsByUser(t *testing.T) {
 	require.NoError(t, storage.Insert(ctx, tip1))
 	require.NoError(t, storage.Insert(ctx, tip2))
 
-	tips, err := storage.GetTipsByUser(ctx, userID)
+	tips, err := storage.GetTipsByUser(ctx, userID, 0, 2)
 	require.NoError(t, err)
 	require.Len(t, tips, 2)
 }
