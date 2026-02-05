@@ -1,0 +1,28 @@
+FROM --platform=$BUILDPLATFORM golang:1.24 AS build
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /cli ./cmd/app
+
+FROM alpine:latest AS final
+
+WORKDIR /
+
+RUN apk --no-cache add ca-certificates tzdata
+
+COPY --from=build /cli /cli
+COPY --from=build /src/migrations/postgres ./migrations/postgres
+COPY config.yaml config.yaml
+
+EXPOSE 8080
+EXPOSE 50051
+
+CMD ["./cli", "--config=config.yaml"]

@@ -1,0 +1,225 @@
+basePath: /api/v1
+definitions:
+  notesservice_internal_models_domain.Note:
+    properties:
+      content:
+        example: Молоко, сыр, хлеб
+        type: string
+      created_at:
+        example: "2026-02-05T13:40:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_private:
+        example: true
+        type: boolean
+      title:
+        example: Купить продукты
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    type: object
+  notesservice_internal_models_swagger.DeleteRequest:
+    properties:
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  notesservice_internal_models_swagger.NoteRequest:
+    properties:
+      note:
+        $ref: '#/definitions/notesservice_internal_models_domain.Note'
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: REST and gRPC API for managing users and outbox events
+  title: User Service API
+  version: "1.0"
+paths:
+  /notes:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a note record by ID in body
+      parameters:
+      - description: 'ID container: {''id'': ''uuid''}'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/notesservice_internal_models_swagger.DeleteRequest'
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+        "500":
+          description: failed to delete note
+          schema:
+            type: string
+      summary: Delete note
+      tags:
+      - notes
+    get:
+      description: Get a list of all notes with pagination
+      parameters:
+      - description: Limit (default 10)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/notesservice_internal_models_domain.Note'
+            type: array
+        "500":
+          description: failed to get notes
+          schema:
+            type: string
+      summary: Get all notes
+      tags:
+      - notes
+    post:
+      consumes:
+      - application/json
+      description: Insert a new note record
+      parameters:
+      - description: Inserted note data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/notesservice_internal_models_swagger.NoteRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: string
+        "400":
+          description: invalid body
+          schema:
+            type: string
+        "409":
+          description: note already exists
+          schema:
+            type: string
+        "500":
+          description: failed to insert note
+          schema:
+            type: string
+      summary: Create note
+      tags:
+      - notes
+    put:
+      consumes:
+      - application/json
+      description: Update an existing note record
+      parameters:
+      - description: Updated note data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/notesservice_internal_models_swagger.NoteRequest'
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+        "500":
+          description: failed to update note
+          schema:
+            type: string
+      summary: Update note
+      tags:
+      - notes
+  /notes/by-user:
+    get:
+      description: Get a list of notes for a specific user via query parameter
+      parameters:
+      - description: User UUID
+        format: uuid
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/notesservice_internal_models_domain.Note'
+            type: array
+        "400":
+          description: missing or invalid id
+          schema:
+            type: string
+        "500":
+          description: failed to get notes by user
+          schema:
+            type: string
+      summary: Get notes by user
+      tags:
+      - notes
+  /notes/detail:
+    get:
+      description: Get details of a single note by its UUID in query
+      parameters:
+      - description: Note UUID
+        format: uuid
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/notesservice_internal_models_domain.Note'
+        "400":
+          description: invalid id
+          schema:
+            type: string
+        "404":
+          description: note not found
+          schema:
+            type: string
+        "500":
+          description: failed to get note by id
+          schema:
+            type: string
+      summary: Get note details
+      tags:
+      - notes
+swagger: "2.0"
