@@ -3,7 +3,7 @@ module notesservice
 go 1.24.12
 
 require (
-	github.com/chas3air/protos v0.6.1
+	github.com/chas3air/protos v0.6.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
