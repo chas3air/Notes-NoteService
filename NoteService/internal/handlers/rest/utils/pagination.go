@@ -5,14 +5,17 @@ import (
 	"strconv"
 )
 
+var (
+	defaultLimit  = 10
+	defaultOffset = 0
+)
+
 type Pagination struct {
 	Limit  int
 	Offset int
 }
 
 func GetPagination(r *http.Request) Pagination {
-	defaultLimit := 10
-	defaultOffset := 0
 
 	sLimit := r.URL.Query().Get("limit")
 	limit, err := strconv.Atoi(sLimit)

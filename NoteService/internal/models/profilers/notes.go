@@ -29,3 +29,12 @@ func NoteToProto(obj domain.Note) notesv1.Note {
 		IsPrivate: obj.IsPrivate,
 	}
 }
+
+func NotesToProtoList(objs []domain.Note) []*notesv1.Note {
+	protoList := make([]*notesv1.Note, len(objs))
+	for i, obj := range objs {
+		noteProto := NoteToProto(obj)
+		protoList[i] = &noteProto
+	}
+	return protoList
+}

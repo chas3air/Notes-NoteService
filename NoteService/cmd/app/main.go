@@ -32,7 +32,7 @@ func main() {
 
 	storage, close, err := postgres.New(log, cfg.Postgres.DSN())
 
-	application := app.New(log, storage, cfg.Rest.Port)
+	application := app.New(log, storage, cfg.Rest.Port, cfg.Grpc.Port)
 
 	go func() {
 		if err := application.RESTServer.Run(); err != nil {
@@ -40,12 +40,17 @@ func main() {
 		}
 	}()
 
-	// grpc.Starting
+	go func() {
+		if err := application.GRPCServer.Run(); err != nil {
+			panic(err)
+		}
+	}()
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGTERM, syscall.SIGINT)
 	<-done
 
 	application.RESTServer.Shutdown()
+	application.GRPCServer.Stop()
 	close()
 }
