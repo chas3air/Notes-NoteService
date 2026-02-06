@@ -3,11 +3,12 @@ package restapp
 import (
 	"context"
 	"net/http"
-	"notesservice/internal/app/rest/middleware"
+	restmiddleware "notesservice/internal/app/rest/middleware"
 	"notesservice/internal/handlers"
 	"notesservice/internal/handlers/rest/notes"
 	"strconv"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/gorilla/mux"
@@ -38,9 +39,11 @@ func (a *App) Run() error {
 	notesHandler := notes.NewHandler(log, a.service)
 
 	base := mux.NewRouter()
-
-	base.Use(middleware.CORS)
+	base.Use(restmiddleware.CORS)
+	base.Use(restmiddleware.RequestLoggerMiddleware(log))
 	router := base.PathPrefix("/api/v1").Subrouter()
+
+	router.Handle("/metrics", promhttp.Handler())
 
 	router.HandleFunc("/notes", notesHandler.GetNotes).Methods(http.MethodGet)
 	router.HandleFunc("/notes/by-user", notesHandler.GetNotesByUser).Methods(http.MethodGet)
@@ -57,7 +60,7 @@ func (a *App) Run() error {
 
 	a.server = &http.Server{
 		Addr:    ":" + strconv.Itoa(a.port),
-		Handler: router,
+		Handler: base,
 	}
 
 	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

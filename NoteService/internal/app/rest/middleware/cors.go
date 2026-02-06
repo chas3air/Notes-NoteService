@@ -1,4 +1,4 @@
-package middleware
+package restmiddleware
 
 import "net/http"
 
