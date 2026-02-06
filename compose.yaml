@@ -7,6 +7,8 @@ services:
       - noteservice_net
     ports:
       - "8080:8080"
+      - "9090:9090"
+      - "50051:50051"
     depends_on:
       psql:
         condition: service_healthy
@@ -30,7 +32,16 @@ services:
     volumes:
     - noteservice_psql_volume:/var/lib/postgresql/data
 
-  # добавить прометей
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9095:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - noteservice_net
+    restart: unless-stopped
   # добавить графану
 
 networks:

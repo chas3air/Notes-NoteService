@@ -23,6 +23,7 @@ COPY --from=build /src/migrations/postgres ./migrations/postgres
 COPY config.yaml config.yaml
 
 EXPOSE 8080
+EXPOSE 9090
 EXPOSE 50051
 
 CMD ["./cli", "--config=config.yaml"]

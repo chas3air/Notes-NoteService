@@ -32,7 +32,7 @@ func main() {
 
 	storage, close, err := postgres.New(log, cfg.Postgres.DSN())
 
-	application := app.New(log, storage, cfg.Rest.Port, cfg.Grpc.Port)
+	application := app.New(log, storage, cfg.Rest.Port, cfg.Grpc.Port, cfg.Metrics.Port)
 
 	go func() {
 		if err := application.RESTServer.Run(); err != nil {

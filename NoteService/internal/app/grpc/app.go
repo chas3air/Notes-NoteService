@@ -3,11 +3,13 @@ package grpcapp
 import (
 	"fmt"
 	"net"
+	"net/http"
 	grpcmiddleware "notesservice/internal/app/grpc/middleware"
 	"notesservice/internal/handlers"
 	"notesservice/internal/handlers/grpc/notes"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -15,12 +17,13 @@ import (
 )
 
 type App struct {
-	log        *zap.Logger
-	gRPCServer *grpc.Server
-	port       int
+	log         *zap.Logger
+	gRPCServer  *grpc.Server
+	port        int
+	metricsPort int
 }
 
-func New(log *zap.Logger, service handlers.Service, port int) *App {
+func New(log *zap.Logger, service handlers.Service, port int, metricsPort int) *App {
 	kaParams := keepalive.ServerParameters{
 		MaxConnectionIdle:     5 * time.Minute,  // разорвать idle соединение
 		MaxConnectionAge:      30 * time.Minute, // максимальный возраст соединения
@@ -44,9 +47,10 @@ func New(log *zap.Logger, service handlers.Service, port int) *App {
 	reflection.Register(gRPCServer)
 
 	return &App{
-		log:        log,
-		gRPCServer: gRPCServer,
-		port:       port,
+		log:         log,
+		gRPCServer:  gRPCServer,
+		port:        port,
+		metricsPort: metricsPort,
 	}
 }
 
@@ -60,11 +64,23 @@ func (a *App) Run() error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
+	a.startMetricsServer()
+	a.log.Info("starting gRPC metrics", zap.String("op", op), zap.Int("port", a.metricsPort))
+
 	if err := a.gRPCServer.Serve(l); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
+}
+
+func (a *App) startMetricsServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", a.metricsPort), nil); err != nil {
+			a.log.Error("failed to start metrics server", zap.Error(err))
+		}
+	}()
 }
 
 func (a *App) Stop() {

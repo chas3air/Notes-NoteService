@@ -25,12 +25,11 @@ type App struct {
 	GRPCServer *grpcapp.App
 }
 
-func New(log *zap.Logger, storage Storage, restPort int, grpcPort int) *App {
+func New(log *zap.Logger, storage Storage, restPort int, grpcPort int, metricsPort int) *App {
 	notesService := notes.New(log, storage)
 
 	restApp := restapp.New(log, notesService, restPort)
-	grpcApp := grpcapp.New(log, notesService, grpcPort)
-
+	grpcApp := grpcapp.New(log, notesService, grpcPort, metricsPort)
 	return &App{
 		RESTServer: restApp,
 		GRPCServer: grpcApp,

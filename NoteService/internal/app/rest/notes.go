@@ -33,7 +33,7 @@ func New(log *zap.Logger, service handlers.Service, port int) *App {
 }
 
 func (a *App) Run() error {
-	const op = "restapp.Run"
+	const op = "rest.App.Run"
 	log := a.log.With(zap.String("op", op))
 
 	notesHandler := notes.NewHandler(log, a.service)
@@ -41,9 +41,9 @@ func (a *App) Run() error {
 	base := mux.NewRouter()
 	base.Use(restmiddleware.CORS)
 	base.Use(restmiddleware.RequestLoggerMiddleware(log))
-	router := base.PathPrefix("/api/v1").Subrouter()
+	base.Handle("/metrics", promhttp.Handler())
 
-	router.Handle("/metrics", promhttp.Handler())
+	router := base.PathPrefix("/api/v1").Subrouter()
 
 	router.HandleFunc("/notes", notesHandler.GetNotes).Methods(http.MethodGet)
 	router.HandleFunc("/notes/by-user", notesHandler.GetNotesByUser).Methods(http.MethodGet)
@@ -56,7 +56,7 @@ func (a *App) Run() error {
 		httpSwagger.URL("http://localhost:" + strconv.Itoa(a.port) + "/api/v1/swagger/doc.json"),
 	))
 
-	log.Info("router was assembled")
+	log.Info("starting rest server", zap.String("op", op), zap.Int("port", a.port))
 
 	a.server = &http.Server{
 		Addr:    ":" + strconv.Itoa(a.port),
@@ -64,7 +64,7 @@ func (a *App) Run() error {
 	}
 
 	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Error("failed to start server", zap.Error(err))
+		log.Error("failed to start server", zap.String("op", op), zap.Error(err))
 		return err
 	}
 

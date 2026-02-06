@@ -1,5 +1,5 @@
 init-docs:
-	swag init -g cmd/app/main.go --parseInternal --parseDependency --dir ./
+	swag init -g /NoteService/cmd/app/main.go --parseInternal --parseDependency --dir ./NoteService
 
 run:
 	@docker compose up --build
