@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS notes
     is_private BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+ALTER TABLE notes REPLICA IDENTITY FULL;
+
+TRUNCATE TABLE notes;
+
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 -- +goose StatementEnd
 
